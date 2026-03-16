@@ -6,6 +6,7 @@
 #include "ChatX.h"
 #include "UI/CXChatInput.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "EngineUtils.h"
 
 void ACXPlayerController::BeginPlay()
 {
@@ -38,18 +39,31 @@ void ACXPlayerController::SetChatMessageString(const FString& InChatMessageStrin
 {
 	ChatMessageString = InChatMessageString;
 
-	PrintChatMessageString(ChatMessageString);
+	if (IsLocalController() == true)
+	{
+		ServerRPCPrintChatMessageString(InChatMessageString);
+	}
 }
 
 void ACXPlayerController::PrintChatMessageString(const FString& InChatMessageString)
 {
-	//UKismetSystemLibrary::PrintString(this, ChatMessageString, true, true, FLinearColor::Red, 5.0f);
 
-	/*
-	FString NetModeString = ChatXFunctionLibrary::GetNetModeString(this);
-	FString CombinedMessageString = FString::Printf(TEXT("%s, %s"), *NetModeString, *InChatMessageString);
-	ChatXFunctionLibrary::MyPrintString(this, CombinedMessageString, 10.f);
-	*/
-	
 	ChatXFunctionLibrary::MyPrintString(this, InChatMessageString, 15.f);
+}
+
+void ACXPlayerController::ClientRPCPrintChatMessageString_Implementation(const FString& InChatMessageString)
+{
+	PrintChatMessageString(InChatMessageString);
+}
+
+void ACXPlayerController::ServerRPCPrintChatMessageString_Implementation(const FString& InChatMessageString)
+{
+	for (TActorIterator<ACXPlayerController> It(GetWorld()); It; ++It)
+	{
+		ACXPlayerController* CXPlayerController = *It;
+		if (IsValid(CXPlayerController) == true)
+		{
+			CXPlayerController->ClientRPCPrintChatMessageString(InChatMessageString);
+		}
+	}
 }

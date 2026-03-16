@@ -8,11 +8,11 @@ class ChatXFunctionLibrary
 {
 public:
 	static void MyPrintString(
-		const AActor* InWorldContextActor, 
+		const AActor* InWorldContextActor,
 		const FString& InString,
 		float InTimeToDisplay = 1.f,
 		FColor InColor = FColor::Cyan
-		)
+	)
 	{
 		if (IsValid(GEngine) == true && IsValid(InWorldContextActor) == true)
 		{
@@ -30,11 +30,11 @@ public:
 			}
 		}
 	}
-	
+
 	static FString GetNetModeString(const AActor* InWorldContextACtor)
 	{
 		FString NetModeString = TEXT("None");
-		
+
 		if (IsValid(InWorldContextACtor) == true)
 		{
 			ENetMode NetMode = InWorldContextACtor->GetNetMode();
@@ -54,8 +54,22 @@ public:
 				}
 			}
 		}
-		
+
 		return NetModeString;
 	}
-};
 
+	static FString GetRoleString(const AActor* InActor)
+	{
+		FString RoleString = TEXT("None");
+
+		if (IsValid(InActor) == true)
+		{
+			FString LocalRoleString = UEnum::GetValueAsString(TEXT("Engine.ENetRole"), InActor->GetLocalRole());
+			FString RemoteRoleString = UEnum::GetValueAsString(TEXT("Engine.ENetRole"), InActor->GetRemoteRole());
+
+			RoleString = FString::Printf(TEXT("%s / %s"), *LocalRoleString, *RemoteRoleString);
+		}
+		
+		return RoleString;
+	}
+};
