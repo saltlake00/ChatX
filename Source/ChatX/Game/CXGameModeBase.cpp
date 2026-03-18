@@ -10,11 +10,10 @@ FString ACXGameModeBase::GenerateSecretNumber()
 	TArray<int32> Numbers;
 	for (int32 i = 1; i <= 9; i++)
 	{
-		Numbers.Add(1);
+		Numbers.Add(i);
 	}
 	FMath::RandInit(FDateTime::Now().GetTicks());
 	Numbers = Numbers.FilterByPredicate([](int32 Num) { return Num>0;});
-
 	FString Result;
 	for (int32 i = 0; i<3; ++i)
 	{
@@ -68,7 +67,7 @@ FString ACXGameModeBase::JudgeResult(const FString& InSecretNumberString, const 
 	
 	for(int32 i = 0; i<3; ++i)
 	{
-		if (In`[i] == InGuessNumberString[i])
+		if (InSecretNumberString[i] == InGuessNumberString[i])
 		{
 			StrikeCount++;
 		}
@@ -97,6 +96,7 @@ void ACXGameModeBase::BeginPlay()
 	Super::BeginPlay();
 	
 	SecretNumberString = GenerateSecretNumber();
+	UE_LOG(LogTemp, Error, TEXT("%s"), *SecretNumberString);
 }
 
 void ACXGameModeBase::PrintChatMessageString(
@@ -133,3 +133,4 @@ void ACXGameModeBase::PrintChatMessageString(
 	
 	
 }
+
