@@ -4,6 +4,31 @@
 #include "Game/CXGameModeBase.h"
 #include "Player/CXPlayerController.h"
 #include "EngineUtils.h"
+#include "Player/CXPlayerState.h"
+#include "Game/CXGameStateBase.h"
+
+void ACXGameModeBase::OnPostLogin(AController* NewPlayer)
+{
+	Super::OnPostLogin(NewPlayer);
+
+	ACXPlayerController* CXPlayerController = Cast<ACXPlayerController>(NewPlayer);
+	if (IsValid(CXPlayerController) == true)
+	{
+		AllPlayerControllers.Add(CXPlayerController);
+
+		ACXPlayerState* CXPS = CXPlayerController->GetPlayerState<ACXPlayerState>();
+		if (IsValid(CXPS) == true)
+		{
+			CXPS->PlayerNameString = TEXT("Player") + FString::FromInt(AllPlayerControllers.Num());
+		}
+
+		ACXGameStateBase* CXGameStateBase = GetGameState<ACXGameStateBase>();
+		if (IsValid(CXGameStateBase) == true)
+		{
+			CXGameStateBase->MulticastRPCBroadcastLoginMessage(CXPS->PlayerNameString);
+		}
+	}
+}
 
 FString ACXGameModeBase::GenerateSecretNumber()
 {
@@ -13,15 +38,15 @@ FString ACXGameModeBase::GenerateSecretNumber()
 		Numbers.Add(i);
 	}
 	FMath::RandInit(FDateTime::Now().GetTicks());
-	Numbers = Numbers.FilterByPredicate([](int32 Num) { return Num>0;});
+	Numbers = Numbers.FilterByPredicate([](int32 Num) { return Num > 0; });
 	FString Result;
-	for (int32 i = 0; i<3; ++i)
+	for (int32 i = 0; i < 3; ++i)
 	{
-		int32 Index = FMath::RandRange(0,Numbers.Num() -1);
+		int32 Index = FMath::RandRange(0, Numbers.Num() - 1);
 		Result.Append(FString::FromInt(Numbers[Index]));
 		Numbers.RemoveAt(Index);
 	}
-	
+
 	return Result;
 }
 
@@ -34,10 +59,10 @@ bool ACXGameModeBase::IsGuessNumberString(const FString& InNumberString)
 		{
 			break;
 		}
-		
+
 		bool bIsUnique = true;
 		TSet<TCHAR> UniqueDigits;
-		
+
 		for (TCHAR C : InNumberString)
 		{
 			if (FChar::IsDigit(C) == false || C == '0')
@@ -45,27 +70,27 @@ bool ACXGameModeBase::IsGuessNumberString(const FString& InNumberString)
 				bIsUnique = false;
 				break;
 			}
-			
+
 			UniqueDigits.Add(C);
 		}
-		
+
 		if (bIsUnique == false)
 		{
 			break;
 		}
-		
+
 		bCanPlay = true;
 	}
 	while (false);
-	
+
 	return bCanPlay;
 }
 
 FString ACXGameModeBase::JudgeResult(const FString& InSecretNumberString, const FString& InGuessNumberString)
 {
 	int32 StrikeCount = 0, BallCount = 0;
-	
-	for(int32 i = 0; i<3; ++i)
+
+	for (int32 i = 0; i < 3; ++i)
 	{
 		if (InSecretNumberString[i] == InGuessNumberString[i])
 		{
@@ -82,19 +107,19 @@ FString ACXGameModeBase::JudgeResult(const FString& InSecretNumberString, const 
 			}
 		}
 	}
-	
+
 	if (StrikeCount == 0 && BallCount == 0)
 	{
 		return TEXT("OUT");
 	}
-	
+
 	return FString::Printf(TEXT("%dS%dB"), StrikeCount, BallCount);
 }
 
 void ACXGameModeBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	SecretNumberString = GenerateSecretNumber();
 	UE_LOG(LogTemp, Error, TEXT("%s"), *SecretNumberString);
 }
@@ -102,13 +127,16 @@ void ACXGameModeBase::BeginPlay()
 void ACXGameModeBase::PrintChatMessageString(
 	ACXPlayerController* InChattingPlayerController,
 	const FString& InChatMessageString
-	)
+)
 {
-	int Index = InChatMessageString.Len() -3;
+	int Index = InChatMessageString.Len() - 3;
 	FString GuessNumberString = InChatMessageString.RightChop(Index);
 	if (IsGuessNumberString(GuessNumberString) == true)
 	{
 		FString JudgeResultString = JudgeResult(SecretNumberString, GuessNumberString);
+
+		IncreaseGuessCount(InChattingPlayerController);
+
 		for (TActorIterator<ACXPlayerController> It(GetWorld()); It; ++It)
 		{
 			ACXPlayerController* CXPlayerContoller = *It;
@@ -124,13 +152,19 @@ void ACXGameModeBase::PrintChatMessageString(
 		for (TActorIterator<ACXPlayerController> It(GetWorld()); It; ++It)
 		{
 			ACXPlayerController* CXPlayerController = *It;
-			if (IsValid(CXPlayerController)==true)
+			if (IsValid(CXPlayerController) == true)
 			{
 				CXPlayerController->ClientRPCPrintChatMessageString(InChatMessageString);
 			}
 		}
 	}
-	
-	
 }
 
+void ACXGameModeBase::IncreaseGuessCount(ACXPlayerController* InChattingPlayerController)
+{
+	ACXPlayerState* CXPS = InChattingPlayerController->GetPlayerState<ACXPlayerState>();
+	if (IsValid(CXPS) == true)
+	{
+		CXPS->CurrentGuessCount++;
+	}
+}
