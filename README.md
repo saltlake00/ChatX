@@ -115,6 +115,40 @@ Unreal Editor 상단 플레이 버튼 옆 설정에서:
 
 ---
 
+## 구현 과정
+
+### 1. 프로젝트 설정
+`ChatX.Build.cs`에서 UMG, Slate 모듈을 추가해 채팅 위젯을 C++에서 사용할 수 있도록 구성했습니다.
+
+### 2. 유틸리티 라이브러리 (`ChatXFunctionLibrary`)
+네트 모드에 따라 디버그 메시지 출력 방식을 자동 분기하는 정적 유틸리티 클래스를 구현했습니다. Client / Listen Server에서는 화면 출력, Dedicated Server에서는 로그로 출력됩니다.
+
+### 3. PlayerState — 플레이어 정보 복제
+플레이어 이름(`PlayerNameString`), 현재 추측 횟수(`CurrentGuessCount`), 최대 추측 횟수(`MaxGuessCount`)를 `DOREPLIFETIME`으로 전체 클라이언트에 복제했습니다. 채팅 메시지에 `Player1(1/3)` 형태로 함께 표시됩니다.
+
+### 4. PlayerController — 채팅 입출력
+- `BeginPlay`에서 로컬 컨트롤러에만 채팅 위젯을 생성해 뷰포트에 추가합니다.
+- 메시지 입력 시 PlayerState에서 플레이어 정보를 조합한 뒤 **Server RPC**로 서버에 전달합니다.
+- 서버는 처리 결과를 **Client RPC**로 각 클라이언트에 전달해 화면에 출력합니다.
+- `NotificationText`를 `Replicated`로 선언해 승리/무승부 알림을 UI에 자동 반영합니다.
+
+### 5. GameModeBase — 핵심 게임 로직
+서버 전용 클래스로 모든 게임 로직을 담당합니다.
+
+- **`OnPostLogin`** — 플레이어 접속 시 이름 부여, GameState를 통해 입장 메시지 브로드캐스트
+- **`GenerateSecretNumber`** — 1~9 배열에서 3개를 무작위 추출해 중복 없는 비밀 숫자 생성
+- **`IsGuessNumberString`** — 길이 3, 숫자만 포함, 0 없음, 중복 없음 조건으로 유효성 검사
+- **`JudgeResult`** — 자리·숫자 비교로 Strike / Ball / OUT 판정
+- **`PrintChatMessageString`** — 입력 끝 3자리를 추출해 숫자야구 입력 여부를 판단하고 전체에 결과 전파
+- **`JudgeGame`** / **`ResetGame`** — 승패 판정 후 비밀 숫자와 추측 횟수 초기화
+
+### 6. GameStateBase — 입장 메시지 브로드캐스트
+GameMode는 서버에만 존재하므로, 전체 클라이언트에 메시지를 보내기 위해 GameState의 **NetMulticast RPC**를 사용했습니다. `HasAuthority()` 체크로 클라이언트에서만 UI에 출력합니다.
+
+### 7. 채팅 위젯 (`CXChatInput`)
+`BindWidget` 매크로로 UMG의 `EditableTextBox`와 C++ 변수를 연결했습니다. `OnTextCommitted` 이벤트에서 Enter 입력을 감지해 PlayerController로 메시지를 전달하고 입력창을 초기화합니다. `NativeDestruct`에서 `IsAlreadyBound` 체크 후 이벤트를 해제해 메모리 안전성을 확보했습니다.
+
+---
 ## 📄 라이선스
 
 이 프로젝트는 학습 목적으로 제작되었습니다.  
