@@ -10,6 +10,12 @@
 #include "Kismet/GameplayStatics.h"
 #include "Game/CXGameModeBase.h"
 #include "CXPlayerState.h"
+#include "Net/UnrealNetwork.h"
+
+ACXPlayerController::ACXPlayerController()
+{
+	bReplicates = true;
+}
 
 void ACXPlayerController::BeginPlay()
 {
@@ -36,6 +42,23 @@ void ACXPlayerController::BeginPlay()
 	}
 
 	ChatInputWidgetInstance->AddToViewport();
+	
+	if (IsValid(NotificationTextWidgetClass) == true)
+	{
+		NotificationTextWidgetInstance = CreateWidget<UUserWidget>(this, NotificationTextWidgetClass);
+		if (IsValid(NotificationTextWidgetInstance) == true)
+		{
+			NotificationTextWidgetInstance->AddToViewport();
+		}
+	}
+	
+}
+
+void ACXPlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	
+	DOREPLIFETIME(ThisClass, NotificationText);
 }
 
 void ACXPlayerController::SetChatMessageString(const FString& InChatMessageString)

@@ -14,6 +14,8 @@ void ACXGameModeBase::OnPostLogin(AController* NewPlayer)
 	ACXPlayerController* CXPlayerController = Cast<ACXPlayerController>(NewPlayer);
 	if (IsValid(CXPlayerController) == true)
 	{
+		CXPlayerController->NotificationText = FText::FromString(TEXT("Connected to the game server."));
+
 		AllPlayerControllers.Add(CXPlayerController);
 
 		ACXPlayerState* CXPS = CXPlayerController->GetPlayerState<ACXPlayerState>();
@@ -28,6 +30,14 @@ void ACXGameModeBase::OnPostLogin(AController* NewPlayer)
 			CXGameStateBase->MulticastRPCBroadcastLoginMessage(CXPS->PlayerNameString);
 		}
 	}
+}
+
+void ACXGameModeBase::BeginPlay()
+{
+	Super::BeginPlay();
+
+	SecretNumberString = GenerateSecretNumber();
+	UE_LOG(LogTemp, Error, TEXT("%s"), *SecretNumberString);
 }
 
 FString ACXGameModeBase::GenerateSecretNumber()
@@ -116,14 +126,6 @@ FString ACXGameModeBase::JudgeResult(const FString& InSecretNumberString, const 
 	return FString::Printf(TEXT("%dS%dB"), StrikeCount, BallCount);
 }
 
-void ACXGameModeBase::BeginPlay()
-{
-	Super::BeginPlay();
-
-	SecretNumberString = GenerateSecretNumber();
-	UE_LOG(LogTemp, Error, TEXT("%s"), *SecretNumberString);
-}
-
 void ACXGameModeBase::PrintChatMessageString(
 	ACXPlayerController* InChattingPlayerController,
 	const FString& InChatMessageString
@@ -144,6 +146,9 @@ void ACXGameModeBase::PrintChatMessageString(
 			{
 				FString CombinedMessageString = InChatMessageString + TEXT(" -> ") + JudgeResultString;
 				CXPlayerContoller->ClientRPCPrintChatMessageString(CombinedMessageString);
+
+				int32 StrikeCount = FCString::Atoi(*JudgeResultString.Left(1));
+				JudgeGame(InChattingPlayerController, StrikeCount);
 			}
 		}
 	}
@@ -166,5 +171,63 @@ void ACXGameModeBase::IncreaseGuessCount(ACXPlayerController* InChattingPlayerCo
 	if (IsValid(CXPS) == true)
 	{
 		CXPS->CurrentGuessCount++;
+	}
+}
+
+void ACXGameModeBase::ResetGame()
+{
+	SecretNumberString = GenerateSecretNumber();
+
+	for (const auto& CXPlayerController : AllPlayerControllers)
+	{
+		ACXPlayerState* CXPS = CXPlayerController->GetPlayerState<ACXPlayerState>();
+		if (IsValid(CXPS) == true)
+		{
+			CXPS->CurrentGuessCount = 0;
+		}
+	}
+}
+
+void ACXGameModeBase::JudgeGame(ACXPlayerController* InChattingPlayerController, int InstrikeCount)
+{
+	if (3 == InstrikeCount)
+	{
+		ACXPlayerState* CXPS = InChattingPlayerController->GetPlayerState<ACXPlayerState>();
+		for (const auto& CXPlayerController : AllPlayerControllers)
+		{
+			if (IsValid(CXPS) == true)
+			{
+				FString CombinedMessageString = CXPS->PlayerNameString + TEXT(" has won the game.");
+				CXPlayerController->NotificationText = FText::FromString(CombinedMessageString);
+
+				ResetGame();
+			}
+		}
+	}
+	else
+	{
+		bool bIsDraw = true;
+		for (const auto& CXPlayerController : AllPlayerControllers)
+		{
+			ACXPlayerState* CXPS = CXPlayerController->GetPlayerState<ACXPlayerState>();
+			if (IsValid(CXPS) == true)
+			{
+				if (CXPS->CurrentGuessCount < CXPS->MaxGuessCount)
+				{
+					bIsDraw = false;
+					break;
+				}
+			}
+		}
+
+		if (true == bIsDraw)
+		{
+			for (const auto& CXPlayerController : AllPlayerControllers)
+			{
+				CXPlayerController->NotificationText = FText::FromString(TEXT("Draw..."));
+
+				ResetGame();
+			}
+		}
 	}
 }

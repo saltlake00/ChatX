@@ -18,6 +18,9 @@ class CHATX_API ACXGameModeBase : public AGameModeBase
 public:
 	virtual void OnPostLogin(AController* NewPlayer) override;
 	
+	virtual void BeginPlay() override;
+	
+	
 public:
 	FString GenerateSecretNumber();
 
@@ -25,11 +28,14 @@ public:
 
 	FString JudgeResult(const FString& InSecretNumberString, const FString& InGuessNumberString);
 
-	virtual void BeginPlay() override;
 	
 	void PrintChatMessageString(ACXPlayerController* InChattingPlayerController, const FString& InChatMessageString);
 	
 	void IncreaseGuessCount(ACXPlayerController* InChattingPlayerController);
+	
+	void ResetGame();
+	
+	void JudgeGame(ACXPlayerController* InChattingPlayerController, int InstrikeCount);
 	
 protected:
 	FString SecretNumberString;
